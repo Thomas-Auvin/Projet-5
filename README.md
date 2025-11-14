@@ -9,3 +9,10 @@ poetry install
 
 # Lancer l'API en local
 poetry run uvicorn app.main:app --reload
+
+# Comment lancer les tests 
+poetry run pytest -q
+
+# Comment lancer l'API
+poetry run python -m uvicorn app.main:app --reload
+    # Puis ouvre http://127.0.0.1:8000/docs
