@@ -1,33 +1,35 @@
-[project]
-name = "projet4"
-version = "0.1.0"
-description = ""
-authors = [
-    {name = "Thomas Auvin",email = "thomas.auvin@hotmail.fr"}
-]
-readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "pandas (>=2.3.3,<3.0.0)",
-    "matplotlib (>=3.10.6,<4.0.0)",
-    "seaborn (>=0.13.2,<0.14.0)",
-    "polars (>=1.34.0,<2.0.0)",
-    "numpy (>=2.3.3,<3.0.0)",
-    "mlxtend (>=0.23.4,<0.24.0)",
-    "shap (>=0.48.0,<0.49.0)",
-    "scikit-learn (>=1.7.2,<2.0.0)",
-    "ipykernel (>=6.30.1,<7.0.0)",
-    "jupyterlab (>=4.4.9,<5.0.0)",
-    "xgboost (>=3.0.5,<4.0.0)",
-    "imbalanced-learn (>=0.14.0,<0.15.0)",
-    "fastapi (>=0.121.2,<0.122.0)",
-    "uvicorn[standard] (>=0.38.0,<0.39.0)",
-    "pydantic (>=2.12.4,<3.0.0)"
-]
-
 [tool.poetry]
-packages = [{ include = "projet4", from = "src" }]
+name = "projet5-turnover-api"
+version = "0.1.0"
+description = "POC Projet 5 : API FastAPI pour le modèle P4 (turnover), avec tests et CI/CD"
+authors = ["Thomas Auvin <thomas.auvin@hotmail.fr>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.13,<3.14"
+pandas = ">=2.3.3,<3.0.0"
+matplotlib = ">=3.10.6,<4.0.0"
+seaborn = ">=0.13.2,<0.14.0"
+polars = ">=1.34.0,<2.0.0"
+numpy = ">=2.3.3,<3.0.0"
+mlxtend = ">=0.23.4,<0.24.0"
+shap = ">=0.48.0,<0.49.0"
+scikit-learn = ">=1.7.2,<2.0.0"
+ipykernel = ">=6.30.1,<7.0.0"
+jupyterlab = ">=4.4.9,<5.0.0"
+xgboost = ">=3.0.5,<4.0.0"
+imbalanced-learn = ">=0.14.0,<0.15.0"
+fastapi = ">=0.115,<1.0"            
+uvicorn = {version = ">=0.32,<1.0", extras = ["standard"]}  
+pydantic = ">=2.12.4,<3.0.0"
+sqlalchemy = "^2.0.0"
+psycopg2-binary = "^2.9.0"
+python-dotenv = "^1.0.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^5.0.0"
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
+requires = ["poetry-core>=1.8.0"]
 build-backend = "poetry.core.masonry.api"

@@ -10,14 +10,17 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
+          cache: "poetry"                
+          cache-dependency-path: "poetry.lock"
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
@@ -30,8 +33,8 @@ jobs:
       - name: Show Poetry version
         run: poetry --version
 
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-ansi
+      - name: Install dependencies (main + dev)
+        run: poetry install --no-interaction --no-ansi --with dev
 
       - name: Run tests (pytest + coverage)
         run: poetry run pytest --maxfail=1 --disable-warnings --cov=app --cov=ml --cov=db --cov-report=xml --cov-report=term-missing
