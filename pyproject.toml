@@ -25,6 +25,7 @@ uvicorn = { version = ">=0.38.0,<0.39.0", extras = ["standard"] }
 pydantic = ">=2.12.4,<3.0.0"
 sqlalchemy = "^2.0.44"
 psycopg = {extras = ["binary"], version = "^3.2.12"}
+python-multipart = "^0.0.20"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
