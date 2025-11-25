@@ -16,7 +16,9 @@ from db.database import get_db
 from db.crud import log_prediction_io
 from fastapi import UploadFile, File
 
+from fastapi.responses import RedirectResponse
 
+ 
 # ---------- Config ----------
 APP_VERSION = "0.1.0"
 DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", "0.5"))
@@ -54,6 +56,11 @@ def get_model():
             status_code=500,
             detail=f"Model load error: {e}",
         )
+
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
