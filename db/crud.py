@@ -17,20 +17,11 @@ def log_prediction_io(
     Insère une trace d'input puis d'output.
     Retourne l'UID (PredInput.uid) permettant de recoller les deux.
     """
-    pi = PredInput(
-        model_version=model_version,
-        threshold=threshold,
-        payload=payload
-        )
+    pi = PredInput(model_version=model_version, threshold=threshold, payload=payload)
     db.add(pi)
     db.flush()  # génère pi.uid
 
-    po = PredOutput(
-        input_uid=pi.uid,
-        proba=proba,
-        label=label,
-        served_by="api"
-        )
+    po = PredOutput(input_uid=pi.uid, proba=proba, label=label, served_by="api")
     db.add(po)
     db.commit()
     return pi.uid

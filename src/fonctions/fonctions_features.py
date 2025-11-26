@@ -140,16 +140,16 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
         # -- 10) statut manager
         df["is_manager_flag"] = df["niveau_hierarchique_poste"] >= 3
 
-        # -- 11)suppression des colonnes après la permutation importance 
+        # -- 11)suppression des colonnes après la permutation importance
 
-        #df = df.drop(columns=[
+        # df = df.drop(columns=[
         #    "heure_supplementaires",
         #    "perf_degrade_flag",
         #    "pee_participation_flag",
         #    "pee_participation_2plus",
         #    "is_manager_flag",
         #    "poste",
-        #    "domaine_etude",          
+        #    "domaine_etude",
         #    "frequence_deplacement"
         #    ],
         #        errors="ignore",
@@ -164,6 +164,7 @@ class FeatureEngineer(BaseEstimator, TransformerMixin):
 
 
 __all__ = ["FeatureEngineer"]
+
 
 class ColumnDropper(BaseEstimator, TransformerMixin):
     def __init__(self, columns=None):
@@ -182,4 +183,3 @@ class ColumnDropper(BaseEstimator, TransformerMixin):
             return np.array([])
         cols_set = set(self.columns or [])
         return np.array([c for c in input_features if c not in cols_set])
-

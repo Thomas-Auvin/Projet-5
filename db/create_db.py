@@ -21,9 +21,7 @@ def ensure_database_exists():
     dbname = url.database
     admin_url = url.set(database="postgres")  # DB d'admin
 
-    admin_engine = create_engine(
-        admin_url, isolation_level="AUTOCOMMIT", future=True
-        )
+    admin_engine = create_engine(admin_url, isolation_level="AUTOCOMMIT", future=True)
     with admin_engine.connect() as conn:
         exists = conn.execute(
             text("SELECT 1 FROM pg_database WHERE datname = :name"),
@@ -36,6 +34,7 @@ def ensure_database_exists():
 
 def create_tables():
     from db.models import Base
+
     engine = create_engine(DATABASE_URL, future=True)
     Base.metadata.create_all(bind=engine)
 

@@ -23,7 +23,7 @@ COPY db db
 COPY ml ml
 COPY scripts scripts
 COPY data data
-COPY src src 
+COPY src src
 COPY README.md README.md
 COPY start.sh start.sh
 

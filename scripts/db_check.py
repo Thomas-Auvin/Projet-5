@@ -15,9 +15,7 @@ def main() -> None:
         print(f"PredInput rows: {n_in}  |  PredOutput rows: {n_out}")
 
         # Derniers enregistrements
-        latest_inputs = db.scalars(
-            select(PredInput).order_by(PredInput.id.desc()).limit(5)
-        ).all()
+        latest_inputs = db.scalars(select(PredInput).order_by(PredInput.id.desc()).limit(5)).all()
         latest_outputs = db.scalars(
             select(PredOutput).order_by(PredOutput.id.desc()).limit(5)
         ).all()
@@ -25,17 +23,12 @@ def main() -> None:
     print("\nDerniers PredInput:")
     for r in latest_inputs:
         payload_preview = str(r.payload)[:120].replace("\n", " ")
-        print(
-            f"{r.id}  {r.uid}  {r.created_at}  "
-            f"thr={r.threshold}  "
-            f"{payload_preview}"
-        )
+        print(f"{r.id}  {r.uid}  {r.created_at}  thr={r.threshold}  {payload_preview}")
 
     print("\nDerniers PredOutput:")
     for r in latest_outputs:
         print(
-            f"{r.id}  input_uid={r.input_uid}  {r.created_at}  "
-            f"proba={r.proba:.3f}  label={r.label}"
+            f"{r.id}  input_uid={r.input_uid}  {r.created_at}  proba={r.proba:.3f}  label={r.label}"
         )
 
 

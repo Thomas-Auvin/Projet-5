@@ -30,9 +30,7 @@ def iter_chunks(path: Path, chunksize: int = 2000) -> Iterator[pd.DataFrame]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "csv_path", type=str, help="Chemin vers le CSV à ingérer"
-        )
+    parser.add_argument("csv_path", type=str, help="Chemin vers le CSV à ingérer")
     parser.add_argument("--source", type=str, default="manual")
     parser.add_argument("--notes", type=str, default="")
     parser.add_argument("--chunksize", type=int, default=2000)
@@ -54,11 +52,7 @@ def main() -> None:
     total_rows = 0
     with SessionLocal() as db:
         # Dédupe par checksum
-        existing = (
-            db.query(DatasetFile)
-            .filter(DatasetFile.checksum == checksum)
-            .one_or_none()
-        )
+        existing = db.query(DatasetFile).filter(DatasetFile.checksum == checksum).one_or_none()
         if existing:
             print("[WARN] Fichier déjà ingéré (checksum identique). Abandon.")
             return
@@ -72,7 +66,7 @@ def main() -> None:
             notes=args.notes,
         )
         db.add(df_meta)
-        db.flush()          # -> df_meta.id est maintenant peuplé par le SGBD
+        db.flush()  # -> df_meta.id est maintenant peuplé par le SGBD
         df_id = df_meta.id  # on fige l'ID tant que la session est ouverte
         db.commit()
 
@@ -83,7 +77,7 @@ def main() -> None:
             for i, row in enumerate(chunk.to_dict(orient="records")):
                 records.append(
                     DatasetRow(
-                        file_id=df_id,      # <-- on utilise df_id (solide)
+                        file_id=df_id,  # <-- on utilise df_id (solide)
                         row_index=row_index_base + i,
                         payload=row,
                     )

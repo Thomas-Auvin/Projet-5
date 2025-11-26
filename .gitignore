@@ -1,6 +1,7 @@
 # .gitignore
 # Secrets / env
 .env
+.mypy_cache/
 
 # Python
 __pycache__/

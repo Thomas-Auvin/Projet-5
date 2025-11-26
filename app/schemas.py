@@ -10,9 +10,7 @@ class PredictRequest(BaseModel):
 
 class PredictBatchRequest(BaseModel):
     # Liste de lignes pour prédiction en lot
-    rows: List[Dict[str, Any]] = Field(
-        ..., description="Liste de features par salarié"
-        )
+    rows: List[Dict[str, Any]] = Field(..., description="Liste de features par salarié")
 
 
 class PredictResponse(BaseModel):

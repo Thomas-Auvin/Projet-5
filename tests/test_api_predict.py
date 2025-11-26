@@ -6,6 +6,7 @@ from app.main import app, get_model
 class FakeModel:
     def predict_proba(self, X):
         import numpy as np
+
         # renvoie 0.8 pour toute ligne -> label=1 si seuil <= 0.8
         probs = np.full((len(X), 2), [0.2, 0.8])
         return probs
@@ -34,9 +35,7 @@ def test_health_ok():
 
 
 def test_predict_one_ok():
-    payload = {
-        "features": {"age": 35, "salaire": 28000, "departement": "sales"}
-        }
+    payload = {"features": {"age": 35, "salaire": 28000, "departement": "sales"}}
     r = client.post("/predict", json=payload)
     assert r.status_code == 200
     data = r.json()

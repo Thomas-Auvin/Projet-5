@@ -18,15 +18,14 @@ from fastapi import UploadFile, File
 
 from fastapi.responses import RedirectResponse
 
- 
+import logging
+
 # ---------- Config ----------
+logger = logging.getLogger(__name__)
 APP_VERSION = "0.1.0"
-DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", "0.5"))
 
 meta = load_meta()
-DEFAULT_THRESHOLD = float(
-    os.getenv("THRESHOLD", meta.get("threshold", 0.5))
-)
+DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", meta.get("threshold", 0.5)))
 FEATURE_NAMES = meta.get("feature_names", None)
 
 
@@ -95,8 +94,8 @@ def predict_one(
             proba=proba,
             label=label,
         )
-    except Exception:
-        pass
+    except Exception as err:
+        logger.warning("DB log failed (predict_one)", exc_info=err)
 
     return PredictResponse(
         proba=proba,
@@ -128,22 +127,19 @@ def predict_batch(
 
     # Log chaque ligne
     try:
-        for row, p, l in zip(req.rows, probas, labels):
+        for row, p, lbl in zip(req.rows, probas, labels):
             log_prediction_io(
                 db,
                 model_version=APP_VERSION,
                 threshold=DEFAULT_THRESHOLD,
                 payload=dict(row),
                 proba=float(p),
-                label=int(l),
+                label=int(lbl),
             )
-    except Exception:
-        pass
+    except Exception as err:
+        logger.warning("DB log failed (predict_batch)", exc_info=err)
 
-    items = [
-        {"proba": float(p), "label": int(l)}
-        for p, l in zip(probas, labels)
-    ]
+    items = [{"proba": float(p), "label": int(lbl)} for p, lbl in zip(probas, labels)]
 
     return {
         "threshold": DEFAULT_THRESHOLD,
@@ -187,24 +183,19 @@ async def predict_csv(
 
     # Log en base (best-effort)
     try:
-        for row, p, l in zip(
-            df.to_dict(orient="records"), probas, labels
-        ):
+        for row, p, lbl in zip(df.to_dict(orient="records"), probas, labels):
             log_prediction_io(
                 db,
                 model_version=APP_VERSION,
                 threshold=DEFAULT_THRESHOLD,
                 payload=dict(row),
                 proba=float(p),
-                label=int(l),
+                label=int(lbl),
             )
-    except Exception:
-        pass
+    except Exception as err:
+        logger.warning("DB log failed (predict_csv)", exc_info=err)
 
-    items = [
-        {"proba": float(p), "label": int(l)}
-        for p, l in zip(probas, labels)
-    ]
+    items = [{"proba": float(p), "label": int(lbl)} for p, lbl in zip(probas, labels)]
 
     return {
         "filename": file.filename,
