@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
+    branches: [main]
   push:
-    branches: ["**"]
+    branches: [main, feat/**, ci-**, ci-bootstrap, hf-deploy]
 
 jobs:
   ci:
