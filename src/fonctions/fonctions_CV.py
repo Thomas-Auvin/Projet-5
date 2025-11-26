@@ -9,9 +9,11 @@ import numpy as np
 def get_transformed_feature_names_and_source_map(pipe, X_sample=None, y_sample=None):
     """
     Retourne:
-      - feat_names: noms finaux des features (get_feature_names_out du ColumnTransformer)
+      - feat_names: noms finaux des features
+      (get_feature_names_out du ColumnTransformer)
       - source_map: dict "feature_transformée" -> "colonne source"
-    Si 'prep' n'est pas fit, on fit un clone de fe+prep sur (X_sample, y_sample).
+    Si 'prep' n'est pas fit, on fit un clone de fe+prep sur
+    (X_sample, y_sample).
     """
     prep = pipe.named_steps["prep"]
 
@@ -22,8 +24,9 @@ def get_transformed_feature_names_and_source_map(pipe, X_sample=None, y_sample=N
     except Exception:
         if X_sample is None:
             raise ValueError(
-                "Le preprocess n'est pas fit. "
-                "Passe X_sample (et éventuellement y_sample) ou fit ton pipeline avant l'appel."
+                "Le preprocess n'est pas fit. ",
+                "Passe X_sample (et éventuellement y_sample)",
+                "ou fit ton pipeline avant l'appel.",
             )
         fe_prep = Pipeline(pipe.steps[:-1])  # (fe + prep)
         fe_prep_fitted = clone(fe_prep).fit(X_sample, y_sample)
@@ -80,8 +83,7 @@ def perm_importance_cv(
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
 
     fe_prep = Pipeline(pipe.steps[:-1])  # fe + preprocess
-    clf_base = pipe.named_steps[list(pipe.named_steps.keys())[-1]]  # le dernier (LogReg ici)
-
+    clf_base = pipe.named_steps[list(pipe.named_steps.keys())[-1]]
     all_importances = []  # liste d'arrays [n_features] pour chaque fold
     feat_names_ref = None
 

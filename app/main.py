@@ -96,7 +96,6 @@ def predict_one(
         )
     except Exception as err:
         logger.warning("DB log failed (predict_one)", exc_info=err)
-
     return PredictResponse(
         proba=proba,
         label=label,
