@@ -40,9 +40,8 @@ jobs:
 
       - name: Security (bandit + pip-audit)
         run: |
-          bandit -q -r . -x tests
+          bandit -q -r app db ml scripts src
           pip-audit -r requirements.txt || true
-
 
       - name: Tests
         env:
