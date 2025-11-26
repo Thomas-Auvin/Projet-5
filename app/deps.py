@@ -1,75 +1,102 @@
 # app/deps.py
-import os
+from __future__ import annotations
+
 import json
+import os
 from functools import lru_cache
 from pathlib import Path
-import joblib
+from typing import Optional
 
-# ↓ nouvelle import
+import joblib
 from huggingface_hub import hf_hub_download
 
-# Emplacements locaux (si déjà présents on les utilise)
+# -Chemins locaux par défaut (si le fichier est déjà présent, on l'utilise)-
 MODEL_PATH = Path(os.getenv("MODEL_PATH", "ml/model.joblib"))
 META_PATH = Path(os.getenv("MODEL_META_PATH", "ml/model_meta.json"))
 
-# Réglages du repo modèle sur HF (où tu viens d’uploader les artefacts)
-HF_MODEL_REPO = os.getenv("HF_MODEL_REPO", "Thomas-Auvin/projet5-turnover-model")
-HF_MODEL_FILE = os.getenv(
-    "HF_MODEL_FILE", "model.joblib"
-)  # ou "ml/model.joblib" si tu as gardé le sous-dossier
-HF_META_FILE = os.getenv("HF_META_FILE", "model_meta.json")  # idem
-HF_REVISION = os.getenv("HF_REVISION")  # optionnel: tag/commit/branch
-HF_TOKEN = os.getenv("HF_TOKEN")  # obligatoire si le repo modèle est privé
+# --- Réglages du repo modèle sur Hugging Face Hub ---
+HF_MODEL_REPO: Optional[str] = os.getenv(
+    "HF_MODEL_REPO",
+    "Thomas-Auvin/projet5-turnover-model",
+)
 
-# Dossier cache (persistant sur HF Spaces : /data)
-CACHE_DIR = Path(os.getenv("MODEL_CACHE_DIR", "/data/models")).resolve()
+# Nom du fichier modèle dans le repo HF
+HF_MODEL_FILE: str = os.getenv("HF_MODEL_FILE", "model.joblib")
+
+# Nom du fichier méta dans le repo HF
+HF_META_FILE: str = os.getenv("HF_META_FILE", "model_meta.json")
+
+# Tag/branche/commit (optionnel)
+HF_REVISION: Optional[str] = os.getenv("HF_REVISION")
+
+# Requis si le repo modèle est privé
+HF_TOKEN: Optional[str] = os.getenv("HF_TOKEN")
+
+# Cache local (optionnel). Sur HF Spaces, /data persiste entre relances.
+# Ex : "/data/models"
+MODEL_CACHE_DIR: Optional[str] = os.getenv("MODEL_CACHE_DIR")
 
 
-def _ensure_download(local_path: Path, repo_id: str, filename: str) -> Path:
+def _download_from_hub(filename: str, local_dir: Path) -> Path:
     """
-    Si local_path n'existe pas, télécharge depuis HF Hub dans CACHE_DIR
-    et retourne le chemin local téléchargé.
+    Télécharge `filename` depuis le repo HF dans `local_dir`
+    et retourne le chemin local.
+    Utilise un cache (MODEL_CACHE_DIR) si défini.
     """
-    if local_path.exists():
-        return local_path
+    if not HF_MODEL_REPO:
+        raise RuntimeError("HF_MODEL_REPO manquant (repo du modèle sur Hugging Face Hub).")
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    downloaded = hf_hub_download(
-        repo_id=repo_id,
+    local_dir.mkdir(parents=True, exist_ok=True)
+
+    # Appel avec kwargs conformes aux stubs (mypy) et API actuelle.
+    downloaded_path = hf_hub_download(
+        repo_id=HF_MODEL_REPO,
         filename=filename,
         revision=HF_REVISION,
         token=HF_TOKEN,
-        local_dir=str(CACHE_DIR),
-        local_dir_use_symlinks=False,  # fichier réel, pas symlink
+        cache_dir=Path(MODEL_CACHE_DIR) if MODEL_CACHE_DIR else None,
+        local_dir=str(local_dir),
     )
-    return Path(downloaded)
+    return Path(downloaded_path)
+
+
+def _ensure_local_file(target_path: Path, hub_filename: str) -> Path:
+    """
+    Retourne un chemin local existant vers le fichier :
+      - si target_path existe déjà → on l’utilise
+      - sinon → on télécharge depuis le Hub dans target_path.parent
+    """
+    if target_path.exists():
+        return target_path
+    return _download_from_hub(filename=hub_filename, local_dir=target_path.parent)
 
 
 @lru_cache
 def load_model():
-    # essaie d’abord MODEL_PATH ; sinon, charge depuis HF
-    local = (
-        MODEL_PATH
-        if MODEL_PATH.exists()
-        else _ensure_download(MODEL_PATH, HF_MODEL_REPO, HF_MODEL_FILE)
-    )
+    """
+    Charge l’objet modèle (joblib) :
+      - priorité au chemin local MODEL_PATH s’il existe
+      - sinon, télécharge depuis le Hub puis charge
+    """
+    local = _ensure_local_file(MODEL_PATH, HF_MODEL_FILE)
     return joblib.load(local)
 
 
 @lru_cache
 def load_meta() -> dict:
+    """
+    Charge le JSON de métadonnées :
+      - priorité au chemin local META_PATH s’il existe
+      - sinon, télécharge depuis le Hub puis charge
+      - fallback d’encodage sur CP-1252 si nécessaire
+    """
     try:
-        local = (
-            META_PATH
-            if META_PATH.exists()
-            else _ensure_download(META_PATH, HF_MODEL_REPO, HF_META_FILE)
-        )
+        local = _ensure_local_file(META_PATH, HF_META_FILE)
         with open(local, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         return {}
     except UnicodeDecodeError:
-        # fallback CP-1252 si fichier ancien Windows
         try:
             with open(local, "r", encoding="cp1252") as f:
                 return json.load(f)
