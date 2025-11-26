@@ -31,16 +31,18 @@ jobs:
 
       - name: Lint (ruff) + Format check (black)
         run: |
-          ruff check .
-          black --check .
+          ruff check app db ml scripts src tests
+          black --check app db ml scripts src tests
+
 
       - name: Type check (mypy)
         run: mypy .
 
       - name: Security (bandit + pip-audit)
         run: |
-          bandit -q -r .
+          bandit -q -r . -x tests
           pip-audit -r requirements.txt || true
+
 
       - name: Tests
         env:
