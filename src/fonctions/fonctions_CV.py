@@ -5,12 +5,15 @@ from sklearn.pipeline import Pipeline
 import pandas as pd
 import numpy as np
 
+
 def get_transformed_feature_names_and_source_map(pipe, X_sample=None, y_sample=None):
     """
     Retourne:
-      - feat_names: noms finaux des features (get_feature_names_out du ColumnTransformer)
+      - feat_names: noms finaux des features
+      (get_feature_names_out du ColumnTransformer)
       - source_map: dict "feature_transformée" -> "colonne source"
-    Si 'prep' n'est pas fit, on fit un clone de fe+prep sur (X_sample, y_sample).
+    Si 'prep' n'est pas fit, on fit un clone de fe+prep sur
+    (X_sample, y_sample).
     """
     prep = pipe.named_steps["prep"]
 
@@ -21,8 +24,9 @@ def get_transformed_feature_names_and_source_map(pipe, X_sample=None, y_sample=N
     except Exception:
         if X_sample is None:
             raise ValueError(
-                "Le preprocess n'est pas fit. "
-                "Passe X_sample (et éventuellement y_sample) ou fit ton pipeline avant l'appel."
+                "Le preprocess n'est pas fit. ",
+                "Passe X_sample (et éventuellement y_sample)",
+                "ou fit ton pipeline avant l'appel.",
             )
         fe_prep = Pipeline(pipe.steps[:-1])  # (fe + prep)
         fe_prep_fitted = clone(fe_prep).fit(X_sample, y_sample)
@@ -69,17 +73,18 @@ def get_transformed_feature_names_and_source_map(pipe, X_sample=None, y_sample=N
     return feat_names, source_map
 
 
-def perm_importance_cv(pipe, X, y, scoring="average_precision", n_splits=5, n_repeats=10, random_state=42):
+def perm_importance_cv(
+    pipe, X, y, scoring="average_precision", n_splits=5, n_repeats=10, random_state=42
+):
     """
     Calcule la permutation importance en CV sur les features transformées.
     Retourne un DataFrame avec mean/std par feature.
     """
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
 
-    fe_prep = Pipeline(pipe.steps[:-1])            # fe + preprocess
-    clf_base = pipe.named_steps[list(pipe.named_steps.keys())[-1]]  # le dernier (LogReg ici)
-
-    all_importances = []     # liste d'arrays [n_features] pour chaque fold
+    fe_prep = Pipeline(pipe.steps[:-1])  # fe + preprocess
+    clf_base = pipe.named_steps[list(pipe.named_steps.keys())[-1]]
+    all_importances = []  # liste d'arrays [n_features] pour chaque fold
     feat_names_ref = None
 
     for tr, va in cv.split(X, y):
@@ -97,24 +102,31 @@ def perm_importance_cv(pipe, X, y, scoring="average_precision", n_splits=5, n_re
             feat_names_ref = feat_names
         else:
             # sécurité : on s'assure que l’ordre est le même à chaque fold
-            assert list(feat_names_ref) == list(feat_names), "Incohérence de noms de features entre folds."
+            if list(feat_names_ref) != list(feat_names):
+                raise ValueError("Incohérence de noms de features entre folds.")
 
         # fit clf sur transformées
         clf = clone(clf_base).fit(Xtr_t, ytr)
 
         # permutation importance sur Xva_t
         perm = permutation_importance(
-            clf, Xva_t, yva,
-            scoring=scoring, n_repeats=n_repeats,
-            random_state=random_state, n_jobs=-1
+            clf,
+            Xva_t,
+            yva,
+            scoring=scoring,
+            n_repeats=n_repeats,
+            random_state=random_state,
+            n_jobs=-1,
         )
         all_importances.append(perm.importances_mean)
 
     importances = np.vstack(all_importances)  # shape: (n_folds, n_features)
-    df_perm = (pd.DataFrame({
-        "feature": feat_names_ref,
-        "imp_mean": importances.mean(axis=0),
-        "imp_std": importances.std(axis=0)
-    }).sort_values("imp_mean", ascending=False))
+    df_perm = pd.DataFrame(
+        {
+            "feature": feat_names_ref,
+            "imp_mean": importances.mean(axis=0),
+            "imp_std": importances.std(axis=0),
+        }
+    ).sort_values("imp_mean", ascending=False)
 
     return df_perm

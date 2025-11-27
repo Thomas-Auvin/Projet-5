@@ -1,23 +1,30 @@
-import numpy as np
+# src/fonctions/fonctions_grid.py
+from __future__ import annotations
+
 import warnings
-warnings.filterwarnings("ignore")
-
+import numpy as np
 from sklearn.model_selection import StratifiedKFold, cross_val_predict
-
 from sklearn.metrics import (
-    accuracy_score, balanced_accuracy_score, 
-    classification_report, confusion_matrix,
-    confusion_matrix, roc_auc_score, 
-    average_precision_score, precision_recall_curve,
+    accuracy_score,
+    balanced_accuracy_score,
+    classification_report,
+    confusion_matrix,
+    roc_auc_score,
+    average_precision_score,
+    precision_recall_curve,
     precision_recall_fscore_support,
 )
+
+# Place le filtre APRÈS les imports (OK pour Ruff)
+warnings.filterwarnings("ignore")
 
 
 # ===============================================================
 # 1) Utilitaires (seuils & évaluations)
 # ===============================================================
 def get_positive_scores(model, X):
-    """Retourne un score pour la classe positive (1): predict_proba[:,1] sinon decision_function."""
+    """Retourne un score pour la classe positive (1):
+    predict_proba[:,1] sinon decision_function."""
     if hasattr(model, "predict_proba"):
         return model.predict_proba(X)[:, 1]
     elif hasattr(model, "decision_function"):
@@ -34,6 +41,7 @@ def get_positive_scores(model, X):
         return s[:, pos_idx]
     else:
         raise AttributeError("Le modèle ne fournit ni predict_proba ni decision_function.")
+
 
 def evaluate_at_threshold(y_true, scores, thr):
     y_pred = (scores >= thr).astype(int)
@@ -56,12 +64,15 @@ def evaluate_at_threshold(y_true, scores, thr):
         "avg_precision_pr": float(ap),
         "roc_auc": float(roc),
         "confusion_matrix": cm,
-        "report": rep
+        "report": rep,
     }
+
 
 def pick_threshold(y_true, scores, mode="max_f1", recall_target=0.75):
     """
-    Choisit un seuil depuis la courbe PR (F1-max ou rappel cible), via precision_recall_curve (sklearn).
+    Choisit un seuil depuis la courbe PR (F1-max ou rappel cible),
+    via precision_recall_curve (sklearn).
+
     """
     precisions, recalls, thresholds = precision_recall_curve(y_true, scores)
     # Alignement: thresholds a une longueur len(precisions)-1
@@ -87,11 +98,22 @@ def pick_threshold(y_true, scores, mode="max_f1", recall_target=0.75):
         "roc_auc": float(roc_auc_score(y_true, scores)),
     }
 
-def pick_threshold_oof(model, X_train, y_train, mode="max_f1", recall_target=0.75, n_splits=5, random_state=42):
+
+def pick_threshold_oof(
+    model, X_train, y_train, mode="max_f1", recall_target=0.75, n_splits=5, random_state=42
+):
     """
-    Choix de seuil sur des scores OOF (out-of-fold) pour éviter toute fuite sur le test.
+    Choix de seuil sur des scores OOF (out-of-fold)
+    pour éviter toute fuite sur le test.
+
     """
     cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     oof_scores = cross_val_predict(model, X_train, y_train, cv=cv, method="predict_proba")[:, 1]
-    thr, summary = pick_threshold(y_train, oof_scores, mode=mode, recall_target=recall_target)
+
+    thr, summary = pick_threshold(
+        y_train,
+        oof_scores,
+        mode=mode,
+        recall_target=recall_target,
+    )
     return float(thr), summary

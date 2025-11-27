@@ -16,7 +16,14 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local.db")
 engine = create_engine(DATABASE_URL, echo=False, future=True)
 
 # Session factory SQLAlchemy v2
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False,
+    future=True,
+    expire_on_commit=False,  # <-- ajout clé
+)
+
 
 def get_db():
     """

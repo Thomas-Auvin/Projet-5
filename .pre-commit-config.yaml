@@ -1,0 +1,66 @@
+# .pre-commit-config.yaml
+# Exclusions globales (regex multilignes)
+# - ignore notebooks (.ipynb), data, binaires, checkpoints
+exclude: |
+  (?x)(
+    \.ipynb$|
+    ^data/|
+    ^visualisations/|
+    ^ml/.*\.joblib$|
+    \.ipynb_checkpoints/
+  )
+
+repos:
+  # 1) Formatage (Black)
+  - repo: https://github.com/psf/black
+    rev: 25.11.0          # aligne avec ton env actuel ; ok si tu laisses 24.x aussi
+    hooks:
+      - id: black
+        args: ["--line-length=100", "--target-version=py313"]
+        types: [python]    # évite les .ipynb
+
+  # 2) Lint + fixes (Ruff)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.6           # correspond à ruff installé en dev, mais pas obligatoire
+    hooks:
+      - id: ruff
+        args: ["--fix", "--line-length=100"]
+        types: [python]    # pas de notebooks
+      - id: ruff-format     # formateur natif ruff (rapide)
+        types: [python]
+
+  # 3) Petites hygiènes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # 4) Typage (Mypy) – cible uniquement ton code (pas tests/scripts)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.2
+    hooks:
+      - id: mypy
+        # Ne lance mypy que sur ces dossiers (réduit le bruit)
+        files: ^(app|db|ml|src)/.*\.py$
+        args:
+          - --ignore-missing-imports
+          - --install-types
+          - --non-interactive
+          - --pretty
+          - --show-error-codes
+          - --python-version=3.13
+        additional_dependencies:
+          - types-requests
+
+  # 5) Sécu (Bandit) – rapide, passe sur le code Python seulement
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-q", "-r", "-x", "tests"]
+        types: [python]

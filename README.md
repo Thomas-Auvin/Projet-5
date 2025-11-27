@@ -1,18 +1,11 @@
-# Projet 5 — Turnover API (FastAPI + P4)
+---
+title: Projet5 Turnover Api
+emoji: 💻
+colorFrom: pink
+colorTo: green
+sdk: docker
+pinned: false
+short_description: Projet 5 - API sur le turnover
+---
 
-**But** : déployer le modèle de classification du Projet 4 via une API FastAPI, avec DB PostgreSQL, tests Pytest et CI/CD.
-
-## Démarrer
-```bash
-# Installer les dépendances (Poetry)
-poetry install
-
-# Lancer l'API en local
-poetry run uvicorn app.main:app --reload
-
-# Comment lancer les tests 
-poetry run pytest -q
-
-# Comment lancer l'API
-poetry run python -m uvicorn app.main:app --reload
-    # Puis ouvre http://127.0.0.1:8000/docs
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference

@@ -1,2 +1,29 @@
 # .gitignore
+# Secrets / env
 .env
+.mypy_cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+
+# Builds / artifacts
+dist/
+build/
+*.egg-info/
+
+# DB / données locales
+*.db
+*.sqlite
+.ipynb_checkpoints/
+
+# OS / éditeur
+.DS_Store
+Thumbs.db
+
+# (option) Exclure le(s) PDF(s)
+*.pdf
+ml/model.joblib

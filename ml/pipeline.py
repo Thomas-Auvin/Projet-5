@@ -34,44 +34,47 @@ def build_preprocess() -> ColumnTransformer:
       - bool : cast -> int8 + imputer(most_frequent)
       - cat : imputer(most_frequent) + OneHotEncoder(ignore)
     """
-    numeric_cont_sel = selector(
-        dtype_include=["number"], dtype_exclude=["bool"]
-        )
+    numeric_cont_sel = selector(dtype_include=["number"], dtype_exclude=["bool"])
     bool_sel = selector(dtype_include=["bool"])
     categorical_sel = selector(dtype_exclude=["number", "bool"])
 
-    num_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
-    ])
+    num_pipe = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
 
     # ⚠️ plus de lambda ici : FunctionTransformer(to_int8, ...)
-    bool_pipe = Pipeline([
-        ("to_int", FunctionTransformer(
-            to_int8, feature_names_out="one-to-one", validate=False
-            )),
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-    ])
+    bool_pipe = Pipeline(
+        [
+            (
+                "to_int",
+                FunctionTransformer(to_int8, feature_names_out="one-to-one", validate=False),
+            ),
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+        ]
+    )
 
-    cat_pipe = Pipeline([
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
-    ])
+    cat_pipe = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+        ]
+    )
 
     preprocess = ColumnTransformer(
         transformers=[
-            ("num",  num_pipe,  numeric_cont_sel),
+            ("num", num_pipe, numeric_cont_sel),
             ("bool", bool_pipe, bool_sel),
-            ("cat",  cat_pipe,  categorical_sel),
+            ("cat", cat_pipe, categorical_sel),
         ],
         remainder="drop",
     )
     return preprocess
 
 
-def build_model(
-        cols_to_drop: Optional[List[str]] = None, random_state: int = 42
-        ) -> Pipeline:
+def build_model(cols_to_drop: Optional[List[str]] = None, random_state: int = 42) -> Pipeline:
     """
     Pipeline final (sans GridSearch) avec hyperparamètres figés
     d'après tes meilleurs résultats P4.
@@ -82,7 +85,6 @@ def build_model(
         tree_method="hist",
         random_state=random_state,
         n_jobs=-1,
-
         # 🔒 hyperparams figés (issus de ton GridSearch P4)
         n_estimators=400,
         learning_rate=0.03,
@@ -95,10 +97,12 @@ def build_model(
         # scale_pos_weight: optionnel, à fixer au training si tu veux
     )
 
-    pipe = Pipeline(steps=[
-        ("fe",   FeatureEngineer()),
-        ("drop", ColumnDropper(columns=list(cols_to_drop or []))),
-        ("prep", build_preprocess()),
-        ("xgb",  xgb),
-    ])
+    pipe = Pipeline(
+        steps=[
+            ("fe", FeatureEngineer()),
+            ("drop", ColumnDropper(columns=list(cols_to_drop or []))),
+            ("prep", build_preprocess()),
+            ("xgb", xgb),
+        ]
+    )
     return pipe

@@ -12,9 +12,13 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import (
-    precision_recall_fscore_support, accuracy_score, balanced_accuracy_score,
-    average_precision_score, roc_auc_score, classification_report, 
-    confusion_matrix
+    precision_recall_fscore_support,
+    accuracy_score,
+    balanced_accuracy_score,
+    average_precision_score,
+    roc_auc_score,
+    classification_report,
+    confusion_matrix,
 )
 
 from ml.pipeline import build_model
@@ -42,9 +46,7 @@ def get_positive_scores(model, X):
     elif hasattr(model, "decision_function"):
         s = model.decision_function(X)
         return s if s.ndim == 1 else s[:, -1]
-    raise AttributeError(
-        "Le modèle ne fournit ni predict_proba ni decision_function."
-        )
+    raise AttributeError("Le modèle ne fournit ni predict_proba ni decision_function.")
 
 
 def evaluate_at_threshold(y_true, scores, thr):
@@ -60,11 +62,16 @@ def evaluate_at_threshold(y_true, scores, thr):
     cm = confusion_matrix(y_true, y_pred).tolist()
     rep = classification_report(y_true, y_pred, digits=3, zero_division=0)
     return dict(
-        threshold=float(thr), precision=float(prec),
-        recall=float(rec), f1=float(f1),
-        accuracy=float(acc), balanced_accuracy=float(bacc),
-        avg_precision_pr=float(ap), roc_auc=float(roc),
-        confusion_matrix=cm, report=rep
+        threshold=float(thr),
+        precision=float(prec),
+        recall=float(rec),
+        f1=float(f1),
+        accuracy=float(acc),
+        balanced_accuracy=float(bacc),
+        avg_precision_pr=float(ap),
+        roc_auc=float(roc),
+        confusion_matrix=cm,
+        report=rep,
     )
 
 
@@ -72,9 +79,7 @@ def evaluate_at_threshold(y_true, scores, thr):
 def main():
     # 1) Charger les données
     if not DATA_PATH.exists():
-        raise FileNotFoundError(
-            f"DATA_PATH introuvable: {DATA_PATH}. Placer le CSV ici."
-            )
+        raise FileNotFoundError(f"DATA_PATH introuvable: {DATA_PATH}. Placer le CSV ici.")
     df = pd.read_csv(DATA_PATH)
 
     # 2) Cible binaire 0/1
@@ -101,11 +106,7 @@ def main():
 
     # 6) Calibration (comme en P4)
     if USE_CALIBRATION:
-        calibrator = CalibratedClassifierCV(
-            estimator=pipe,
-            method=CALIB_METHOD,
-            cv=5
-        )
+        calibrator = CalibratedClassifierCV(estimator=pipe, method=CALIB_METHOD, cv=5)
         calibrator.fit(X_train, y_train)
         final_model = calibrator
     else:
@@ -115,10 +116,7 @@ def main():
     proba_test = get_positive_scores(final_model, X_test)
     print("\n=== AUC/AP (test) ===")
     print("ROC AUC :", f"{roc_auc_score(y_test, proba_test):.3f}")
-    print(
-        "Avg Precision (PR AUC) :",
-        f"{average_precision_score(y_test, proba_test):.3f}"
-        )
+    print("Avg Precision (PR AUC) :", f"{average_precision_score(y_test, proba_test):.3f}")
 
     res = evaluate_at_threshold(y_test, proba_test, THRESHOLD_FINAL)
     print(f"\n=== Rapport @ seuil {THRESHOLD_FINAL:.4f} ===")
@@ -144,9 +142,7 @@ def main():
     }
 
     # ⚠️ ECRITURE UTF-8 POUR EVITER L'ERREUR UnicodeDecodeError
-    META_PATH.write_text(
-        json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+    META_PATH.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print(f"\nSaved model to:   {MODEL_PATH.resolve()}")
     print(f"Saved metadata to:{META_PATH.resolve()}")

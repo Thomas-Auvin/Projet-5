@@ -15,9 +15,7 @@ def main() -> None:
         print(f"PredInput rows: {n_in}  |  PredOutput rows: {n_out}")
 
         # Derniers enregistrements
-        latest_inputs = db.scalars(
-            select(PredInput).order_by(PredInput.id.desc()).limit(5)
-        ).all()
+        latest_inputs = db.scalars(select(PredInput).order_by(PredInput.id.desc()).limit(5)).all()
         latest_outputs = db.scalars(
             select(PredOutput).order_by(PredOutput.id.desc()).limit(5)
         ).all()
@@ -29,7 +27,9 @@ def main() -> None:
 
     print("\nDerniers PredOutput:")
     for r in latest_outputs:
-        print(f"{r.id}  input_uid={r.input_uid}  {r.created_at}  proba={r.proba:.3f}  label={r.label}")
+        print(
+            f"{r.id}  input_uid={r.input_uid}  {r.created_at}  proba={r.proba:.3f}  label={r.label}"
+        )
 
 
 if __name__ == "__main__":
