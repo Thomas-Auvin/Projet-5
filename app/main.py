@@ -1,17 +1,29 @@
 # app/main.py
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException
 from typing import Any
 import os
 import pandas as pd
 
-from app.schemas import PredictRequest, PredictBatchRequest, PredictResponse
+from app.schemas import (
+    PredictRequest,
+    PredictBatchRequest,
+    PredictResponse,
+)
 from app.deps import load_model, load_meta
 
-import io  # pour lire le CSV en mémoire
+from sqlalchemy.orm import Session
+from db.database import get_db
+from db.crud import log_prediction_io
+from fastapi import UploadFile, File
 
+from fastapi.responses import RedirectResponse
+
+import logging
 
 # ---------- Config ----------
+logger = logging.getLogger(__name__)
 APP_VERSION = "0.1.0"
+
 meta = load_meta()
 DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", meta.get("threshold", 0.5)))
 FEATURE_NAMES = meta.get("feature_names", None)
@@ -25,7 +37,7 @@ def _align(X: pd.DataFrame) -> pd.DataFrame:
 
 app = FastAPI(
     title="Futurisys Turnover API",
-    description="POC Projet 5 : Modèle du Projet 4 (turnover)",
+    description="POC Projet 5 : API FastAPI (turnover)",
     version=APP_VERSION,
 )
 
@@ -36,10 +48,18 @@ def get_model():
     except FileNotFoundError as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Model file not found: {e}"
-            )
+            detail=f"Model file not found: {e}",
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Model load error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Model load error: {e}",
+        )
+
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")
@@ -48,91 +68,137 @@ def health_check():
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict_one(req: PredictRequest, model: Any = Depends(get_model)):
-    # DataFrame d’une seule ligne
+def predict_one(
+    req: PredictRequest,
+    model: Any = Depends(get_model),
+    # injecte la session DB
+    db: Session = Depends(get_db),
+):
     X = _align(pd.DataFrame([req.features]))
-    # On suppose un pipeline sklearn avec .predict_proba
     try:
         proba = float(model.predict_proba(X)[0, 1])
     except AttributeError:
         raise HTTPException(
             status_code=500,
-            detail="Model has no predict_proba. Check your pipeline."
-            )
-    label = int(proba >= DEFAULT_THRESHOLD)
-    return PredictResponse(
-        proba=proba, label=label,
-        threshold=DEFAULT_THRESHOLD
+            detail="Model has no predict_proba. Check your pipeline.",
         )
+    label = int(proba >= DEFAULT_THRESHOLD)
+
+    # Log en base (ne casse pas la réponse si le log échoue)
+    try:
+        log_prediction_io(
+            db,
+            model_version=APP_VERSION,
+            threshold=DEFAULT_THRESHOLD,
+            payload=dict(req.features),
+            proba=proba,
+            label=label,
+        )
+    except Exception as err:
+        logger.warning("DB log failed (predict_one)", exc_info=err)
+    return PredictResponse(
+        proba=proba,
+        label=label,
+        threshold=DEFAULT_THRESHOLD,
+    )
 
 
 @app.post("/predict_batch")
-def predict_batch(req: PredictBatchRequest, model: Any = Depends(get_model)):
+def predict_batch(
+    req: PredictBatchRequest,
+    model: Any = Depends(get_model),
+    # injecte la session DB
+    db: Session = Depends(get_db),
+):
     if len(req.rows) == 0:
         return {"items": []}
+
     X = _align(pd.DataFrame(req.rows))
     try:
         probas = model.predict_proba(X)[:, 1]
     except AttributeError:
         raise HTTPException(
             status_code=500,
-            detail="Model has no predict_proba. Check your pipeline."
-            )
+            detail="Model has no predict_proba. Check your pipeline.",
+        )
+
     labels = (probas >= DEFAULT_THRESHOLD).astype(int).tolist()
+
+    # Log chaque ligne
+    try:
+        for row, p, lbl in zip(req.rows, probas, labels):
+            log_prediction_io(
+                db,
+                model_version=APP_VERSION,
+                threshold=DEFAULT_THRESHOLD,
+                payload=dict(row),
+                proba=float(p),
+                label=int(lbl),
+            )
+    except Exception as err:
+        logger.warning("DB log failed (predict_batch)", exc_info=err)
+
+    items = [{"proba": float(p), "label": int(lbl)} for p, lbl in zip(probas, labels)]
+
     return {
         "threshold": DEFAULT_THRESHOLD,
-        "items": [
-            {"proba": float(p),
-             "label": int(l)} for p,
-            l in zip(probas, labels)
-            ]
+        "items": items,
     }
 
 
 @app.post("/predict_csv")
 async def predict_csv(
-    file: UploadFile = File(
-        ..., description="Fichier CSV avec une ligne par personne"
-        ),
-    sep: str = ",",  # au besoin, tu peux passer sep=";" pour des CSV FR
+    file: UploadFile = File(...),
     model: Any = Depends(get_model),
+    db: Session = Depends(get_db),
 ):
-    # 1) Lire le fichier (on essaye UTF-8 puis fallback CP-1252)
+    import io
+
+    # Lecture robuste du CSV (UTF-8 puis fallback CP-1252)
     raw = await file.read()
-    df = None
-    for enc in ("utf-8", "cp1252"):
-        try:
-            df = pd.read_csv(io.StringIO(raw.decode(enc)), sep=sep)
-            break
-        except UnicodeDecodeError:
-            continue
-    if df is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Impossible de décoder le CSV (essaie UTF-8 ou CP-1252).",
-        )
+    try:
+        df = pd.read_csv(io.StringIO(raw.decode("utf-8")))
+    except UnicodeDecodeError:
+        df = pd.read_csv(io.StringIO(raw.decode("cp1252")))
 
-    # 2) Si la colonne cible existe,
-    #    on la retire (le modèle n'en a pas besoin pour prédire)
-    target = meta.get("target")
-    if target and target in df.columns:
-        df = df.drop(columns=[target])
+    # On ignore la cible si elle est présente
+    target_col = "a_quitte_l_entreprise"
+    if target_col in df.columns:
+        df = df.drop(columns=[target_col])
 
-    # 3) Aligner l'ordre / l'ensemble
-    #    des colonnes sur celles du modèle (FEATURE_NAMES)
+    if df.empty:
+        raise HTTPException(status_code=400, detail="CSV vide.")
+
     X = _align(df)
-
-    # 4) Prédictions
     try:
         probas = model.predict_proba(X)[:, 1]
     except AttributeError:
         raise HTTPException(
             status_code=500,
-            detail="Model has no predict_proba. Check your pipeline."
-            )
+            detail="Model has no predict_proba. Check your pipeline.",
+        )
 
     labels = (probas >= DEFAULT_THRESHOLD).astype(int).tolist()
-    items = [
-        {"proba": float(p), "label": int(l)} for p, l in zip(probas, labels)
-        ]
-    return {"threshold": DEFAULT_THRESHOLD, "items": items}
+
+    # Log en base (best-effort)
+    try:
+        for row, p, lbl in zip(df.to_dict(orient="records"), probas, labels):
+            log_prediction_io(
+                db,
+                model_version=APP_VERSION,
+                threshold=DEFAULT_THRESHOLD,
+                payload=dict(row),
+                proba=float(p),
+                label=int(lbl),
+            )
+    except Exception as err:
+        logger.warning("DB log failed (predict_csv)", exc_info=err)
+
+    items = [{"proba": float(p), "label": int(lbl)} for p, lbl in zip(probas, labels)]
+
+    return {
+        "filename": file.filename,
+        "threshold": DEFAULT_THRESHOLD,
+        "n_rows": len(items),
+        "items": items,
+    }
