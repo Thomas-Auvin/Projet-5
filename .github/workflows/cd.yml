@@ -3,6 +3,15 @@ name: CD to Hugging Face Space
 on:
   push:
     branches: [main]
+    paths:
+      - "app/**"
+      - "ml/**"
+      - "db/**"
+      - "scripts/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - ".github/workflows/cd.yml"
+  workflow_dispatch: {}  # => bouton "Run workflow"
 
 jobs:
   deploy:
@@ -13,9 +22,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git
+      - name: Configure Git (for pushing to HF)
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Push to HF Space
@@ -24,7 +33,7 @@ jobs:
         run: |
           git remote add hf https://huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api || true
           git fetch hf || true
-          # Rebase pour éviter les non-fast-forward si quelqu'un modifie le Space directement
+          # On tente de rebaser sur l'état du Space (si quelqu'un a cliqué "Edit files" côté HF)
           git rebase hf/main || true
           # Push authentifié via token
           git push https://__token__:${HF_TOKEN}@huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api HEAD:main
