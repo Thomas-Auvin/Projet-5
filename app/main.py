@@ -1,32 +1,31 @@
 # app/main.py
-from fastapi import FastAPI, Depends, HTTPException
-from typing import Any
-import os
-import pandas as pd
-
-from app.schemas import (
-    PredictRequest,
-    PredictBatchRequest,
-    PredictResponse,
-)
-from app.deps import load_model, load_meta
-
-from sqlalchemy.orm import Session
-from db.database import get_db
-from db.crud import log_prediction_io
-from fastapi import UploadFile, File
-
-from fastapi.responses import RedirectResponse
+from __future__ import annotations
 
 import logging
+import os
+from typing import Any
+
+import pandas as pd
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+
+from app.deps import load_meta, load_model
+from app.schemas import (
+    PredictBatchRequest,
+    PredictRequest,
+    PredictResponse,
+)
+from db.crud import log_prediction_io
+from db.database import get_db
 
 # ---------- Config ----------
 logger = logging.getLogger(__name__)
 APP_VERSION = "0.1.0"
 
-meta = load_meta()
-DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", meta.get("threshold", 0.5)))
-FEATURE_NAMES = meta.get("feature_names", None)
+MODEL_META = load_meta()
+DEFAULT_THRESHOLD = float(os.getenv("THRESHOLD", MODEL_META.get("threshold", 0.5)))
+FEATURE_NAMES = MODEL_META.get("feature_names", None)
 
 
 def _align(X: pd.DataFrame) -> pd.DataFrame:
@@ -50,7 +49,7 @@ def get_model():
             status_code=500,
             detail=f"Model file not found: {e}",
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         raise HTTPException(
             status_code=500,
             detail=f"Model load error: {e}",
@@ -62,6 +61,19 @@ def root():
     return RedirectResponse(url="/docs")
 
 
+@app.get("/meta")
+def get_meta():
+    return {
+        "version": APP_VERSION,
+        "threshold": DEFAULT_THRESHOLD,
+        "model_meta": MODEL_META,
+        "env": {
+            "HF_MODEL_REPO": os.getenv("HF_MODEL_REPO"),
+            "HF_REVISION": os.getenv("HF_REVISION"),
+        },
+    }
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "version": APP_VERSION}
@@ -71,7 +83,6 @@ def health_check():
 def predict_one(
     req: PredictRequest,
     model: Any = Depends(get_model),
-    # injecte la session DB
     db: Session = Depends(get_db),
 ):
     X = _align(pd.DataFrame([req.features]))
@@ -84,7 +95,6 @@ def predict_one(
         )
     label = int(proba >= DEFAULT_THRESHOLD)
 
-    # Log en base (ne casse pas la réponse si le log échoue)
     try:
         log_prediction_io(
             db,
@@ -94,8 +104,9 @@ def predict_one(
             proba=proba,
             label=label,
         )
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.warning("DB log failed (predict_one)", exc_info=err)
+
     return PredictResponse(
         proba=proba,
         label=label,
@@ -107,7 +118,6 @@ def predict_one(
 def predict_batch(
     req: PredictBatchRequest,
     model: Any = Depends(get_model),
-    # injecte la session DB
     db: Session = Depends(get_db),
 ):
     if len(req.rows) == 0:
@@ -124,7 +134,6 @@ def predict_batch(
 
     labels = (probas >= DEFAULT_THRESHOLD).astype(int).tolist()
 
-    # Log chaque ligne
     try:
         for row, p, lbl in zip(req.rows, probas, labels):
             log_prediction_io(
@@ -135,7 +144,7 @@ def predict_batch(
                 proba=float(p),
                 label=int(lbl),
             )
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.warning("DB log failed (predict_batch)", exc_info=err)
 
     items = [{"proba": float(p), "label": int(lbl)} for p, lbl in zip(probas, labels)]
@@ -154,14 +163,12 @@ async def predict_csv(
 ):
     import io
 
-    # Lecture robuste du CSV (UTF-8 puis fallback CP-1252)
     raw = await file.read()
     try:
         df = pd.read_csv(io.StringIO(raw.decode("utf-8")))
     except UnicodeDecodeError:
         df = pd.read_csv(io.StringIO(raw.decode("cp1252")))
 
-    # On ignore la cible si elle est présente
     target_col = "a_quitte_l_entreprise"
     if target_col in df.columns:
         df = df.drop(columns=[target_col])
@@ -180,9 +187,9 @@ async def predict_csv(
 
     labels = (probas >= DEFAULT_THRESHOLD).astype(int).tolist()
 
-    # Log en base (best-effort)
     try:
-        for row, p, lbl in zip(df.to_dict(orient="records"), probas, labels):
+        rows = df.to_dict(orient="records")
+        for row, p, lbl in zip(rows, probas, labels):
             log_prediction_io(
                 db,
                 model_version=APP_VERSION,
@@ -191,7 +198,7 @@ async def predict_csv(
                 proba=float(p),
                 label=int(lbl),
             )
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         logger.warning("DB log failed (predict_csv)", exc_info=err)
 
     items = [{"proba": float(p), "label": int(lbl)} for p, lbl in zip(probas, labels)]
