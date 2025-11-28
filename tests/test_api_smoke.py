@@ -8,3 +8,10 @@ def test_health_ok():
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json().get("status") == "ok"
+
+
+def test_meta_ok():
+    r = client.get("/meta")
+    assert r.status_code == 200
+    data = r.json()
+    assert "version" in data and "threshold" in data
