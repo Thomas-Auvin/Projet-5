@@ -27,3 +27,8 @@ Thumbs.db
 # (option) Exclure le(s) PDF(s)
 *.pdf
 ml/model.joblib
+
+# coverage / pytest
+.coverage
+htmlcov/
+.pytest_cache/
