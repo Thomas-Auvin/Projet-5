@@ -8,32 +8,41 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout main
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure Git (for pushing to HF)
+      - name: Build deploy bundle (no history, no LFS)
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euxo pipefail
+          mkdir -p deploy
+          rsync -av \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.mypy_cache' \
+            --exclude '.pytest_cache' \
+            --exclude '.ruff_cache' \
+            --exclude '.venv' \
+            --exclude 'data/*' \
+            --exclude 'ml/*.joblib' \
+            --exclude '*.ipynb_checkpoints*' \
+            ./ deploy/
 
-      - name: Prepare HF remote
+      - name: Init throwaway git repo for Space
+        working-directory: deploy
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           set -euxo pipefail
-          if git remote get-url hf >/dev/null 2>&1; then
-            git remote set-url hf "https://__token__:${HF_TOKEN}@huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api"
-          else
-            git remote add hf "https://__token__:${HF_TOKEN}@huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api"
-          fi
-          git fetch hf main || true
-          echo "Local HEAD: $(git rev-parse HEAD)"
-          echo "HF main  : $(git rev-parse remotes/hf/main || echo 'absent')"
-
-      - name: Push to HF (force-with-lease)
-        run: |
-          set -euxo pipefail
-          git push --force-with-lease hf HEAD:main
+          git init
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "deploy: $(date -u +%Y-%m-%dT%H:%M:%SZ) from $GITHUB_SHA"
+          git branch -M main
+          git remote add origin "https://__token__:${HF_TOKEN}@huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api"
+          # On pousse un nouvel historique propre (aucun commit LFS)
+          git push --force origin main
