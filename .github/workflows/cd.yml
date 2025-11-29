@@ -14,9 +14,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure Git
+      - name: Configure Git (for pushing to HF)
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Prepare HF remote
