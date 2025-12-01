@@ -40,10 +40,15 @@ pip-audit = "^2.9.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --maxfail=1 --disable-warnings --cov=."
-pythonpath = [
-  ".",
-]
+addopts = """
+-q --maxfail=1 --disable-warnings
+--cov=app --cov=db
+--cov-report=term-missing:skip-covered
+--cov-report=xml
+--cov-fail-under=60
+"""
+pythonpath = ["."]
+
 
 [tool.black]
 line-length = 100
