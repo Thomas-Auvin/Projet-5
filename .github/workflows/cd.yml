@@ -3,37 +3,46 @@ name: CD to Hugging Face Space
 on:
   push:
     branches: [main]
-    paths:
-      - "app/**"
-      - "ml/**"
-      - "db/**"
-      - "scripts/**"
-      - "Dockerfile"
-      - "requirements.txt"
-      - ".github/workflows/cd.yml"
-  workflow_dispatch: {}  # => bouton "Run workflow"
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout main
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Configure Git (for pushing to HF)
+      - name: Build deploy bundle (no history, no LFS)
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -euxo pipefail
+          mkdir -p deploy
+          rsync -av \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.mypy_cache' \
+            --exclude '.pytest_cache' \
+            --exclude '.ruff_cache' \
+            --exclude '.venv' \
+            --exclude 'data/*' \
+            --exclude 'ml/*.joblib' \
+            --exclude '*.ipynb_checkpoints*' \
+            ./ deploy/
 
-      - name: Push to HF Space
+      - name: Init throwaway git repo for Space
+        working-directory: deploy
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add hf https://huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api || true
-          git fetch hf || true
-          # On tente de rebaser sur l'état du Space (si quelqu'un a cliqué "Edit files" côté HF)
-          git rebase hf/main || true
-          # Push authentifié via token
-          git push https://__token__:${HF_TOKEN}@huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api HEAD:main
+          set -euxo pipefail
+          git init
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "deploy: $(date -u +%Y-%m-%dT%H:%M:%SZ) from $GITHUB_SHA"
+          git branch -M main
+          git remote add origin "https://__token__:${HF_TOKEN}@huggingface.co/spaces/Thomas-Auvin/projet5-turnover-api"
+          # On pousse un nouvel historique propre (aucun commit LFS)
+          git push --force origin main
