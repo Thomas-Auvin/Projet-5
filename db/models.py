@@ -7,7 +7,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy import String, DateTime, Float, Integer
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy import ForeignKey, BigInteger
+from sqlalchemy import ForeignKey
 
 
 class Base(DeclarativeBase):
@@ -63,7 +63,7 @@ class DatasetFile(Base):
 class DatasetRow(Base):
     __tablename__ = "dataset_rows"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     file_id: Mapped[int] = mapped_column(ForeignKey("dataset_files.id"), index=True)
     row_index: Mapped[int] = mapped_column(Integer, index=True)  # position dans le CSV
     payload: Mapped[dict] = mapped_column(JSONPortable())
