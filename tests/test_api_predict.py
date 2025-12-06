@@ -77,8 +77,12 @@ def test_predict_csv_json_ok(test_client_overriding):
 def test_predict_csv_export_ok(test_client_overriding):
     """Test du endpoint CSV avec retour au format CSV (as_csv=true)."""
     client = test_client_overriding
-    df = pd.DataFrame([{"x": 1}, {"x": 2}])
-
+    df = pd.DataFrame(
+        [
+            {"satisfaction_employee_environnement": 0.7},
+            {"satisfaction_employee_environnement": 0.9},
+        ]
+    )
     buf = io.BytesIO()
     df.to_csv(buf, index=False)
     buf.seek(0)

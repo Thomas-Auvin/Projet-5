@@ -197,7 +197,15 @@ async def predict_csv(
     target_col = "a_quitte_l_entreprise"
     if target_col in df.columns:
         df = df.drop(columns=[target_col])
-
+    if isinstance(FEATURE_NAMES, list):
+        expected = set(FEATURE_NAMES)
+        provided = set(df.columns)
+        common = expected & provided
+        if len(common) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="CSV invalide : les colonnes ne correspondent pas aux features attendues.",
+            )
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV vide.")
 
