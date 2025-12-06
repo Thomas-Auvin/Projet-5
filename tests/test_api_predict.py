@@ -50,7 +50,12 @@ def test_predict_batch_empty(test_client_overriding):
 def test_predict_csv_json_ok(test_client_overriding):
     """Test du endpoint CSV avec retour JSON (mode par défaut)."""
     client = test_client_overriding
-    df = pd.DataFrame([{"x": 1}, {"x": 2}])
+    df = pd.DataFrame(
+        [
+            {"satisfaction_employee_environnement": 0.7},
+            {"satisfaction_employee_environnement": 0.9},
+        ]
+    )
 
     buf = io.BytesIO()
     df.to_csv(buf, index=False)
@@ -103,3 +108,19 @@ def test_predict_csv_export_ok(test_client_overriding):
     assert "proba_depart" in header
     assert "label_depart" in header
     assert "risk_label" in header
+
+
+def test_predict_csv_json_invalid_schema(test_client_overriding):
+    """CSV invalide : aucune colonne ne correspond aux features attendues."""
+    client = test_client_overriding
+
+    df = pd.DataFrame([{"x": 1}, {"x": 2}])  # colonne inconnue
+    buf = io.BytesIO()
+    df.to_csv(buf, index=False)
+    buf.seek(0)
+
+    files = {"file": ("bad.csv", buf, "text/csv")}
+    r = client.post("/predict_csv", files=files)
+
+    assert r.status_code == 400
+    assert "les colonnes ne correspondent pas aux features attendues" in r.json()["detail"]
